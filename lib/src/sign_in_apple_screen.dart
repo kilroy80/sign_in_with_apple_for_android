@@ -174,8 +174,10 @@ class _SignInAppleScreenState extends State<SignInAppleScreen> {
   }
 
   void parseCustomScheme(Uri uri) {
+    if (uri.scheme != widget.customScheme || uri.host != widget.customHost) {
+      widget.onHandleScheme?.call(uri.toString());
+    }
 
-    if (uri.host != widget.customHost) widget.onHandleScheme?.call(uri.toString());
     if (uri.query.isNotEmpty) {
       try {
         // debugPrint('uri query == ${Uri.decodeComponent(uri.query)}');
