@@ -12,8 +12,8 @@ dependencies:
     sdk: flutter
   plugin_platform_interface: ^2.0.2
 
-  sign_in_with_apple: ^7.0.0
-  flutter_inappwebview: ^6.0.0
+  sign_in_with_apple: ^8.0.0
+  flutter_inappwebview: ^6.1.5
 
 dev_dependencies:
   flutter_test:
