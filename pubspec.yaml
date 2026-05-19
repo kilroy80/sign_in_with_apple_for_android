@@ -40,8 +40,8 @@ flutter:
       android:
         package: com.kinosoft.sign_in_with_apple_for_android
         pluginClass: SignInWithAppleForAndroidPlugin
-      ios:
-        pluginClass: SignInWithAppleForAndroidPlugin
+#      ios:
+#        pluginClass: SignInWithAppleForAndroidPlugin
 
   # To add assets to your plugin package, add an assets section, like this:
   # assets:
