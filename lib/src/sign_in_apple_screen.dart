@@ -1,8 +1,8 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
-import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:sign_in_with_apple_for_android/src/credential_apple_parser.dart';
+import 'package:webview_flutter/webview_flutter.dart';
+import 'package:webview_flutter_android/webview_flutter_android.dart';
+import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
 
 import '../sign_in_with_apple_for_android.dart';
 
@@ -44,28 +44,12 @@ class _SignInAppleScreenState extends State<SignInAppleScreen> {
 
   var initProgressIndicator = true;
 
+  late final WebViewController _controller;
   late Uri openUri;
-  late InAppWebViewSettings settings;
-
-  InAppWebViewController? webViewController;
 
   @override
   void initState() {
     super.initState();
-
-    settings = widget.appendUserAgent == false ? InAppWebViewSettings(
-      userAgent: widget.userAgent,
-      useShouldOverrideUrlLoading: true,
-      useHybridComposition: widget.useHybridComposition,  // impeller enabled = true, otherwise = false
-      mediaPlaybackRequiresUserGesture: false,
-      allowsInlineMediaPlayback: true,
-    ) : InAppWebViewSettings(
-      applicationNameForUserAgent: widget.userAgent,
-      useShouldOverrideUrlLoading: true,
-      useHybridComposition: widget.useHybridComposition,  // impeller enabled = true, otherwise = false
-      mediaPlaybackRequiresUserGesture: false,
-      allowsInlineMediaPlayback: true,
-    );
 
     openUri = Uri(
       scheme: 'https',
@@ -81,6 +65,105 @@ class _SignInAppleScreenState extends State<SignInAppleScreen> {
         if (widget.nonce != null) 'nonce': widget.nonce,
       },
     );
+
+    late final PlatformWebViewControllerCreationParams params;
+
+    if (WebViewPlatform.instance is WebKitWebViewPlatform) {
+      params = WebKitWebViewControllerCreationParams(
+        allowsInlineMediaPlayback: true,
+        /// iOS media playback auto play = empty array
+        mediaTypesRequiringUserAction: const {
+        },
+      );
+    } else {
+      params = const PlatformWebViewControllerCreationParams();
+    }
+
+    _controller = WebViewController.fromPlatformCreationParams(params)
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onPageStarted: (String url) {
+          },
+          onPageFinished: (String url) {
+          },
+          onProgress: (progress) {
+            if (progress > 50 && initProgressIndicator == true) {
+              setState(() {
+                initProgressIndicator = false;
+              });
+            }
+          },
+          onWebResourceError: (WebResourceError error) {
+            debugPrint('Web Resource Error: ${error.description}');
+          },
+          onNavigationRequest: (NavigationRequest request) async {
+            var actionUrl = Uri.parse(request.url);
+            debugPrint('onNavigationRequest = $actionUrl');
+
+            if (actionUrl.scheme == 'http' || actionUrl.scheme == 'https') {
+              return NavigationDecision.navigate;
+            } else if (actionUrl.scheme == 'intent') {
+              /// android only
+              /// Intent.parseUri(uriString, Intent.URI_INTENT_SCHEME)
+              /// and Handle Custom Scheme
+              var intentData = await SignInWithAppleForAndroid()
+                  .parseIntentData(actionUrl.toString()) ?? '';
+              parseCustomScheme(Uri.parse(intentData));
+              return NavigationDecision.prevent;
+            } else {
+              parseCustomScheme(actionUrl);
+              return NavigationDecision.prevent;
+            }
+          },
+        ),
+      );
+
+    if (_controller.platform is AndroidWebViewController) {
+      /// android debug
+      // AndroidWebViewController.enableDebugging(true);
+
+      /// android media playback auto play (false)
+      (_controller.platform as AndroidWebViewController)
+          .setMediaPlaybackRequiresUserGesture(false);
+
+      /// android permission
+      (_controller.platform as AndroidWebViewController)
+          .setOnPlatformPermissionRequest(
+            (PlatformWebViewPermissionRequest request) {
+          request.grant();
+        },
+      );
+      /// android geolocation permissions
+      (_controller.platform as AndroidWebViewController)
+          .setGeolocationPermissionsPromptCallbacks(
+        onShowPrompt: (GeolocationPermissionsRequestParams request) async {
+          return const GeolocationPermissionsResponse(
+            allow: true,
+            retain: false,
+          );
+        },
+        onHidePrompt: () {
+        },
+      );
+    }
+
+    /// async call function
+    addSettingAndLoadUrl();
+  }
+
+  Future<void> addSettingAndLoadUrl() async {
+    /// set User Agent
+    if (widget.userAgent?.isNotEmpty == true) {
+      if (widget.appendUserAgent == true) {
+        final String? defaultUserAgent = await _controller.getUserAgent();
+        _controller.setUserAgent('$defaultUserAgent ${widget.userAgent}');
+      } else {
+        _controller.setUserAgent(widget.userAgent);
+      }
+    }
+    /// load page
+    _controller.loadRequest(openUri);
   }
 
   @override
@@ -105,61 +188,7 @@ class _SignInAppleScreenState extends State<SignInAppleScreen> {
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(15.0,),
-              child: InAppWebView(
-                initialUrlRequest: URLRequest(url: WebUri(openUri.toString()),),
-                initialSettings: settings,
-                onWebViewCreated: (controller) {
-                  webViewController = controller;
-                },
-                onProgressChanged: (InAppWebViewController controller, int progress) {
-                  if (progress > 50 && initProgressIndicator == true) {
-                    setState(() {
-                      initProgressIndicator = false;
-                    });
-                  }
-                },
-                shouldOverrideUrlLoading: (controller, navigationAction) async {
-                  var actionUrl = navigationAction.request.url ?? Uri.parse('');
-                  debugPrint('shouldOverrideUrlLoading = $actionUrl');
-
-                  if (actionUrl.scheme == 'http' || actionUrl.scheme == 'https') {
-                    return NavigationActionPolicy.ALLOW;
-                  } else if (actionUrl.scheme == 'intent') {
-                    /// android only
-                    /// Intent.parseUri(uriString, Intent.URI_INTENT_SCHEME)
-                    /// and Handle Custom Scheme
-                    var intentData = await SignInWithAppleForAndroid()
-                        .parseIntentData(actionUrl.toString()) ?? '';
-                    parseCustomScheme(Uri.parse(intentData));
-                    return NavigationActionPolicy.CANCEL;
-                  } else {
-                    parseCustomScheme(actionUrl);
-                    return NavigationActionPolicy.CANCEL;
-                  }
-
-                  // if (await canLaunchUrl(actionUrl)) {
-                  //   return NavigationActionPolicy.ALLOW;
-                  // } else {
-                  //   return NavigationActionPolicy.CANCEL;
-                  // }
-                },
-                onTitleChanged: (InAppWebViewController controller, String? title) {
-                },
-                onPermissionRequest:
-                    (InAppWebViewController controller, PermissionRequest request) async {
-                  return PermissionResponse(
-                      resources: request.resources,
-                      action: PermissionResponseAction.GRANT);
-                },
-                // onGeolocationPermissionsShowPrompt:
-                //     (InAppWebViewController controller, String origin) async {
-                //   return GeolocationPermissionShowPromptResponse(
-                //     origin: origin,
-                //     allow: true,
-                //     retain: true,
-                //   );
-                // },
-              ),
+              child: WebViewWidget(controller: _controller),
             ),
           ),
           Visibility(

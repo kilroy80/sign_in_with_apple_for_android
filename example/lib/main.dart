@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'dart:async';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
-import 'package:flutter/services.dart';
 import 'package:sign_in_with_apple_for_android/sign_in_with_apple_for_android.dart';
 
 void main() {
@@ -16,46 +15,51 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  String _platformVersion = 'Unknown';
+  @override
+  Widget build(BuildContext context) {
+    return const MaterialApp(
+      home: MainPage(),
+    );
+  }
+}
+
+class MainPage extends StatefulWidget {
+  const MainPage({super.key});
+
+  @override
+  State<MainPage> createState() => _MainPageState();
+}
+
+class _MainPageState extends State<MainPage> {
+
   final _signInWithAppleForAndroidPlugin = SignInWithAppleForAndroid();
 
   @override
-  void initState() {
-    super.initState();
-    initPlatformState();
-  }
-
-  // Platform messages are asynchronous, so we initialize in an async method.
-  Future<void> initPlatformState() async {
-    String platformVersion;
-    // Platform messages may fail, so we use a try/catch PlatformException.
-    // We also handle the message potentially returning null.
-    // try {
-    //   platformVersion =
-    //       await _signInWithAppleForAndroidPlugin.getPlatformVersion() ?? 'Unknown platform version';
-    // } on PlatformException {
-    //   platformVersion = 'Failed to get platform version.';
-    // }
-
-    // If the widget was removed from the tree while the asynchronous platform
-    // message was in flight, we want to discard the reply rather than calling
-    // setState to update our non-existent appearance.
-    if (!mounted) return;
-
-    // setState(() {
-    //   _platformVersion = platformVersion;
-    // });
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      home: Scaffold(
-        appBar: AppBar(
-          title: const Text('Plugin example app'),
-        ),
-        body: Center(
-          child: Text('Running on: $_platformVersion\n'),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Plugin example app'),
+      ),
+      body: Center(
+        child: MaterialButton(
+          onPressed: () async {
+            try {
+              await _signInWithAppleForAndroidPlugin.signInApple(
+                context,
+                WebAuthenticationOptions(
+                  clientId: 'ios service id',
+                  redirectUri: Uri.parse('ios callback url'),
+                ),
+                userAgent: 'Sample',
+                callbackScheme: SignInScheme(scheme: 'scheme', host: 'host'),
+              );
+            } catch (e) {
+              debugPrint('signInApple error = $e');
+            }
+          },
+          child: const Center(
+            child: Text('Open Apple Sign-In View'),
+          ),
         ),
       ),
     );

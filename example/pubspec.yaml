@@ -17,6 +17,7 @@ dependencies:
   flutter:
     sdk: flutter
 
+  sign_in_with_apple: ^8.0.0
   sign_in_with_apple_for_android:
     # When depending on this package from a real application you should use:
     #   sign_in_with_apple_for_android: ^x.y.z
