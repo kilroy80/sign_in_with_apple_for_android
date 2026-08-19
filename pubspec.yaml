@@ -12,6 +12,9 @@ dependencies:
     sdk: flutter
   plugin_platform_interface: ^2.0.2
 
+  material_ui: ^1.0.0
+  cupertino_ui: ^1.0.0
+
   sign_in_with_apple: ^8.0.0
 #  flutter_inappwebview: ^6.1.5
   webview_flutter: ^4.7.0

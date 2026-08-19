@@ -1,8 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:sign_in_with_apple_for_android/src/sign_in_apple_screen.dart';
 
